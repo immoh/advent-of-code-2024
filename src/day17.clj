@@ -71,3 +71,35 @@
   (-> (parse-input input)
       (run-program)
       (->> (str/join ","))))
+
+;; part2
+
+(defn run-program-with-a [state a]
+  (-> state
+      (assoc-in [:registers :a] a)
+      (run-program)))
+
+(defn base8-to-decimal [coefficients length]
+  (reduce + (map (fn [cofx power]
+                   (* cofx (long (math/pow 8 power))))
+                 coefficients
+                 (reverse (range length)))))
+
+;; nth bit (staring from 0) in program output changes when a changes by 8^n
+; a = x0 * 8^0 + ... + xn * 8^n
+; we need to find smallest coefficients x [0..7] that result in same bit values
+(defn part2 [input]
+  (let [{:keys [program] :as initial-state} (parse-input input)]
+    (loop [wip [[]]]
+      (when-let [coefficients (first wip)]
+        (if (= (count program) (count coefficients))
+          (base8-to-decimal coefficients (count program))
+          (let [i (- (count program) (count coefficients) 1)]
+            (recur (concat (->> (range 8)
+                                (map (partial conj coefficients))
+                                (filter #(= (nth program i)
+                                            (nth (run-program-with-a initial-state
+                                                                     (base8-to-decimal % (count program)))
+                                                 i
+                                                 nil))))
+                           (rest wip)))))))))
