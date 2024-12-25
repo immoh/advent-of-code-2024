@@ -23,22 +23,47 @@
        (filter empty-tiles)))
 
 (defn find-shortest-path [empty-tiles start end]
-  (loop [wip {start 0}
-         visited #{start}]
-    (when-let [[pos distance] (first (sort-by val wip))]
+  (loop [wip {start [start]}
+         visited #{}]
+    (when-let [[pos path] (first (sort-by val wip))]
       (if (= end pos)
-        distance
-        (recur (merge-with min
+        path
+        (recur (merge-with (fn [path1 path2]
+                             (if (<= (count path1) (count path2))
+                               path1
+                               path2))
                            (dissoc wip pos)
-                           (zipmap (remove visited (neighbors empty-tiles pos))
-                                   (repeat (inc distance))))
+                           (->> (neighbors empty-tiles pos)
+                                (remove visited)
+                                (map (fn [pos]
+                                       [pos (conj path pos)]))
+                                (into {})))
                (conj visited pos))))))
 
+(defn manhattan-distance [[x1 y1] [x2 y2]]
+  (+ (abs (- x2 x1)) (abs (- y2 y1))))
+
+(defn cheat-savings [best-path cheat-max-length]
+  (->> (for [i (range (dec (count best-path)))
+             j (range (inc i) (count best-path))
+             :let [cheat-distance (manhattan-distance (nth best-path i) (nth best-path j))]
+             :when (<= cheat-distance cheat-max-length)]
+         (- j i cheat-distance))))
+
+;; Part 1
+
 (defn part1 [input]
-  (let [{:keys [empty-tiles walls start end]} (parse-input input)
-        best-time (find-shortest-path empty-tiles start end)]
-    (->> walls
-         (keep #(find-shortest-path (conj empty-tiles %) start end))
-         (map (fn [cheat-time] (- best-time cheat-time)))
-         (filter #(>= % 100))
+  (let [{:keys [empty-tiles start end]} (parse-input input)
+        best-path (find-shortest-path empty-tiles start end)]
+    (->> (cheat-savings best-path 2)
+         (filter (partial <= 100))
+         (count))))
+
+;; Part 2
+
+(defn part2 [input]
+  (let [{:keys [empty-tiles start end]} (parse-input input)
+        best-path (find-shortest-path empty-tiles start end)]
+    (->> (cheat-savings best-path 20)
+         (filter (partial <= 100))
          (count))))
