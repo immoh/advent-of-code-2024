@@ -1,5 +1,6 @@
 (ns day24
   (:require
+    [com.phronemophobic.clj-graphviz :refer [render-graph]]
     [clojure.string :as str]))
 
 (defn parse-gates [gates]
@@ -51,3 +52,42 @@
 
 (defn part1 [input]
   (decimal-value-of-prefix (parse-input input) "z"))
+
+;; Part 2
+
+(defn swap-gates [gate-map [gate1 gate2]]
+  (assoc gate-map gate1 (gate-map gate2)
+                  gate2 (gate-map gate1)))
+
+;; Every z_n gate should have structure:
+;;   [:xor
+;;     [:xor x_n y_n]
+;;     [:or ...]]
+;;
+;; Render graph and figure out z-gates that don't fulfill this
+;; and figure out which are the necessary swaps
+(defn render [input]
+  (render-graph {:edges (mapcat (fn [[k [op arg1 arg2]] i]
+                                  (when (not= :value op)
+                                    (let [gate (str (name op) "_" i)]
+                                      [[k gate]
+                                       [gate arg1]
+                                       [gate arg2]])))
+                                (reduce swap-gates
+                                        (parse-input input)
+                                        ;; These swaps are identified by visually inspecting the graph
+                                        [["z05" "gdd"]
+                                         ["z09" "cwt"]
+                                         ["css" "jmv"]
+                                         ["z37" "pqt"]])
+                                (range))
+                 :flags #{:directed}}))
+
+(defn part2 []
+  (->> [["z05" "gdd"]
+        ["z09" "cwt"]
+        ["css" "jmv"]
+        ["z37" "pqt"]]
+       (mapcat identity)
+       (sort)
+       (str/join ",")))
